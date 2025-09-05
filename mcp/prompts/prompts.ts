@@ -1,5 +1,3 @@
-#!/usr/bin/env tsx
-
 import { join } from "path";
 import { Server } from "@modelcontextprotocol/sdk/server";
 import {
