@@ -63,9 +63,10 @@ export class Tools {
     this.server.setRequestHandler(
       CallToolRequestSchema,
       async (request: any) => {
+        const startTime = Date.now();
+
         try {
           const { name, arguments: args } = request.params;
-          const startTime = Date.now();
 
           log("info", `Executing tool: ${name}`, args);
 
