@@ -6,10 +6,15 @@ import db from "./../src/lib/server/prisma";
 import { log } from "./utils/log";
 import { cleanup } from "./utils/cleaup";
 import { Tools } from "./tools/tools";
+import { Prompts } from "./prompts/prompts";
+import { Resources } from "./resources/resources";
 
 class MCPServer {
   private server: Server;
+
   public tools: Tools;
+  public prompts: Prompts;
+  public resources: Resources;
 
   constructor() {
     this.server = new Server(
@@ -27,6 +32,8 @@ class MCPServer {
     );
 
     this.tools = new Tools(this.server);
+    this.prompts = new Prompts(this.server);
+    this.resources = new Resources(this.server);
 
     log("info", "MCP Server initialized");
   }

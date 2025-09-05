@@ -17,13 +17,13 @@ export class Tools {
   constructor(server: Server) {
     this.server = server;
 
-    this.listToolsSchema();
-    this.callToolsSchema();
+    this.listSchema();
+    this.callSchema();
   }
 
-  private listToolsSchema(): void {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      const tools: Tool[] = [
+  private listSchema(): void {
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: [
         {
           name: "create_user",
           description: "Create a new user in the database",
@@ -46,10 +46,8 @@ export class Tools {
             additionalProperties: false,
           },
         },
-      ];
-
-      return { tools };
-    });
+      ],
+    }));
   }
 
   async executeCall(name: string, args: object) {
@@ -61,13 +59,14 @@ export class Tools {
     }
   }
 
-  private callToolsSchema(): void {
+  private callSchema(): void {
     this.server.setRequestHandler(
       CallToolRequestSchema,
       async (request: any) => {
-        const { name, arguments: args } = request.params;
-        const startTime = Date.now();
         try {
+          const { name, arguments: args } = request.params;
+          const startTime = Date.now();
+
           log("info", `Executing tool: ${name}`, args);
 
           // Add timeout wrapper for all operations
