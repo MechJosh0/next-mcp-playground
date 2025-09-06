@@ -1,7 +1,10 @@
 import db from "./../../../src/lib/server/prisma";
 import { log } from "./../../utils/log";
 
-export const userCreate = async function (args = {}) {
+export const userCreate = async function (args: {
+  email: string;
+  name?: string;
+}) {
   log("info", "try to create the user!");
 
   const user = await db.user.create({
