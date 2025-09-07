@@ -9,6 +9,10 @@ import {
 import { log } from "./../utils/log";
 import { userCreate, userCreateMeta } from "./user/userCreate";
 import { createTask, createTaskMeta } from "./task/createTask";
+import { updateTask, updateTaskMeta } from "./task/updateTask";
+import { deleteTask, deleteTaskMeta } from "./task/deleteTask";
+import { getTask, getTaskMeta } from "./task/getTask";
+import { listTasks, listTasksMeta } from "./task/listTasks";
 import { readFile, readFileMeta } from "./codebase/readFile";
 import { writeFile, writeFileMeta } from "./codebase/writeFile";
 import { deleteFile, deleteFileMeta } from "./codebase/deleteFile";
@@ -41,16 +45,27 @@ export class Tools {
 
   private addTools() {
     this.tools = {
+      // User tools
       create_user: [userCreateMeta, userCreate],
+      
+      // Task CRUD tools
       create_task: [createTaskMeta, createTask],
+      update_task: [updateTaskMeta, updateTask],
+      delete_task: [deleteTaskMeta, deleteTask],
+      get_task: [getTaskMeta, getTask],
+      list_tasks: [listTasksMeta, listTasks],
+      
+      // Codebase tools
       read_file: [readFileMeta, readFile],
       write_file: [writeFileMeta, writeFile],
       delete_file: [deleteFileMeta, deleteFile],
       analyse_file: [analyseFileMeta, analyseFile],
-      get_project_context: [getProjectContextMeta, getProjectContext],
-      get_coding_standards: [getCodingStandardsMeta, getCodingStandards],
       get_file_structure: [getFileStructureMeta, getFileStructure],
       search_codebase: [searchCodebaseMeta, searchCodebase],
+      
+      // Project tools
+      get_project_context: [getProjectContextMeta, getProjectContext],
+      get_coding_standards: [getCodingStandardsMeta, getCodingStandards],
     };
   }
 
@@ -88,7 +103,7 @@ export class Tools {
           const result = await Promise.race([
             toolFunction(args || {}),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Operation timed out")), 1000)
+              setTimeout(() => reject(new Error("Operation timed out")), 30000)
             ),
           ]);
 
