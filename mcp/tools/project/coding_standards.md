@@ -87,6 +87,298 @@ interface CreateTaskParams {
 const createTask = async (params: CreateTaskParams) => { ... }
 ```
 
+## Schema Validation with Zod
+
+### Schema Organization and Structure
+
+All input validation should be handled using Zod schemas that both validate data and provide type inference. Organize schemas by domain with reusable base schemas.
+
+#### Schema File Structure
+
+```
+src/lib/validation/
+├── shared.schema.ts         # Common reusable schemas
+├── account.schema.ts        # Authentication-related schemas
+├── user.schema.ts          # User-related schemas
+├── task.schema.ts          # Task-related schemas
+└── index.ts                # Re-export all schemas
+```
+
+#### Base Schema Patterns
+
+```typescript
+// src/lib/validation/shared.schema.ts
+import { z } from "zod";
+
+export const firstNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Please enter at least 2 characters.")
+  .max(50, "Please enter at most 50 characters.");
+
+export const lastNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Please enter at least 2 characters.")
+  .max(50, "Please enter at most 50 characters.");
+
+export const emailSchema = z
+  .string()
+  .trim()
+  .email("Enter a valid e-mail address.");
+
+export const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters.")
+  .regex(/[A-Z]/, "Add at least one capital letter.")
+  .regex(/[0-9]/, "Add at least one number.");
+```
+
+#### Domain-Specific Schemas
+
+```typescript
+// src/lib/validation/account.schema.ts
+import { z } from "zod";
+import { emailSchema, passwordSchema } from "./shared.schema";
+
+export const userCreateSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+});
+
+export const userLoginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, "Password is required."),
+});
+
+// Infer types from schemas
+export type UserCreateInput = z.infer<typeof userCreateSchema>;
+export type UserLoginInput = z.infer<typeof userLoginSchema>;
+```
+
+```typescript
+// src/lib/validation/task.schema.ts
+import { z } from "zod";
+import { Priority } from "@prisma/client";
+
+export const taskCreateSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "Task title is required.")
+    .max(255, "Title too long."),
+  description: z.string().trim().optional(),
+  priority: z.nativeEnum(Priority).default(Priority.MEDIUM),
+  userId: z.number().int().positive("Valid user ID required."),
+});
+
+export const taskUpdateSchema = taskCreateSchema.partial().extend({
+  id: z.number().int().positive("Valid task ID required."),
+});
+
+export type TaskCreateInput = z.infer<typeof taskCreateSchema>;
+export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
+```
+
+### Integration with CRUD Operations
+
+#### Repository Layer Validation
+
+```typescript
+// src/repositories/TaskRepository.ts
+import { Task, PrismaClient } from "@prisma/client";
+import {
+  taskCreateSchema,
+  TaskCreateInput,
+} from "@/lib/validation/task.schema";
+
+export class TaskRepository {
+  constructor(private prisma: PrismaClient) {}
+
+  async create(input: TaskCreateInput): Promise<Task> {
+    // Validate input with Zod schema
+    const validatedData = taskCreateSchema.parse(input);
+
+    return await this.prisma.task.create({
+      data: validatedData,
+    });
+  }
+
+  async update(id: number, input: Partial<TaskCreateInput>): Promise<Task> {
+    const validatedData = taskUpdateSchema.parse({ ...input, id });
+
+    return await this.prisma.task.update({
+      where: { id: validatedData.id },
+      data: validatedData,
+    });
+  }
+}
+```
+
+#### Service Layer Usage
+
+```typescript
+// src/services/TaskService.ts
+import { TaskRepository } from "@/repositories/TaskRepository";
+import { TaskCreateInput, TaskUpdateInput } from "@/lib/validation/task.schema";
+
+export class TaskService {
+  constructor(private taskRepository: TaskRepository) {}
+
+  async createTask(input: TaskCreateInput): Promise<Task> {
+    // Additional business logic validation if needed
+    if (await this.isDuplicateTitle(input.title, input.userId)) {
+      throw new Error("Task with this title already exists");
+    }
+
+    // Repository handles Zod validation
+    return await this.taskRepository.create(input);
+  }
+
+  async updateTask(id: number, input: Partial<TaskCreateInput>): Promise<Task> {
+    return await this.taskRepository.update(id, input);
+  }
+}
+```
+
+#### API Route Validation
+
+```typescript
+// src/app/api/tasks/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { taskCreateSchema } from "@/lib/validation/task.schema";
+import { TaskService } from "@/services/TaskService";
+import { ZodError } from "zod";
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    // Validate request body with Zod
+    const validatedInput = taskCreateSchema.parse(body);
+
+    const taskService = new TaskService(taskRepository);
+    const task = await taskService.createTask(validatedInput);
+
+    return NextResponse.json(task, { status: 201 });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: error.errors,
+        },
+        { status: 400 }
+      );
+    }
+
+    console.error("API Error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+```
+
+#### MCP Tool Integration
+
+```typescript
+// mcp/tools/task/create-task.ts
+import { z } from "zod";
+import {
+  taskCreateSchema,
+  TaskCreateInput,
+} from "@/lib/validation/task.schema";
+import { TaskService } from "@/services/TaskService";
+
+// Define MCP tool schema based on Zod schema
+const createTaskToolSchema = taskCreateSchema.extend({
+  // Add any tool-specific fields if needed
+});
+
+export const createTask = async function (args: TaskCreateInput) {
+  // Validate MCP tool arguments
+  const validatedArgs = createTaskToolSchema.parse(args);
+
+  const taskService = new TaskService(taskRepository);
+  const task = await taskService.createTask(validatedArgs);
+
+  return {
+    content: [{ type: "text", text: JSON.stringify({ task }) }],
+  };
+};
+```
+
+### Schema Validation Best Practices
+
+#### Error Message Standards
+
+```typescript
+// ✅ Good: Descriptive, user-friendly error messages
+export const emailSchema = z
+  .string()
+  .trim()
+  .email("Please enter a valid email address.");
+
+export const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters long.")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter.")
+  .regex(/[0-9]/, "Password must contain at least one number.");
+
+// ❌ Avoid: Generic or technical error messages
+export const emailSchema = z.string().email(); // Uses default Zod message
+export const passwordSchema = z.string().min(8).regex(/[A-Z]/);
+```
+
+#### Schema Composition and Reusability
+
+```typescript
+// ✅ Good: Compose complex schemas from simpler ones
+const baseUserSchema = z.object({
+  email: emailSchema,
+  firstName: firstNameSchema,
+  lastName: lastNameSchema,
+});
+
+export const userCreateSchema = baseUserSchema.extend({
+  password: passwordSchema,
+});
+
+export const userUpdateSchema = baseUserSchema.partial();
+
+export const userProfileSchema = baseUserSchema.extend({
+  id: z.number().int().positive(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+```
+
+#### Type Safety with Schema Inference
+
+```typescript
+// ✅ Good: Always infer types from schemas
+export type UserCreateInput = z.infer<typeof userCreateSchema>;
+export type UserUpdateInput = z.infer<typeof userUpdateSchema>;
+export type UserProfile = z.infer<typeof userProfileSchema>;
+
+// Use inferred types in function signatures
+const createUser = async (input: UserCreateInput): Promise<User> => {
+  // Type safety guaranteed by Zod schema
+  const validatedInput = userCreateSchema.parse(input);
+  return await userRepository.create(validatedInput);
+};
+
+// ❌ Avoid: Manual interface definitions that can drift from schemas
+interface ManualUserCreateInput {
+  email: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+}
+```
+
 ## Architecture Patterns
 
 ### Repository Pattern
@@ -175,7 +467,7 @@ src/
 │   └── assignments/
 ├── lib/
 │   ├── database/
-│   ├── validations/
+│   ├── validation/      # Zod schemas organized by domain
 │   └── utils/
 └── config/
 ```

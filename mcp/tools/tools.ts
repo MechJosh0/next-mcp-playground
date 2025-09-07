@@ -8,6 +8,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { log } from "./../utils/log";
 import { userCreate, userCreateMeta } from "./user/userCreate";
+import { createTask, createTaskMeta } from "./task/createTask";
 import { readFile, readFileMeta } from "./codebase/readFile";
 import { writeFile, writeFileMeta } from "./codebase/writeFile";
 import { deleteFile, deleteFileMeta } from "./codebase/deleteFile";
@@ -41,6 +42,7 @@ export class Tools {
   private addTools() {
     this.tools = {
       create_user: [userCreateMeta, userCreate],
+      create_task: [createTaskMeta, createTask],
       read_file: [readFileMeta, readFile],
       write_file: [writeFileMeta, writeFile],
       delete_file: [deleteFileMeta, deleteFile],
