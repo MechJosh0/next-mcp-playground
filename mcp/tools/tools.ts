@@ -7,16 +7,33 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { log } from "./../utils/log";
+
+// User tools
 import { userCreate, userCreateMeta } from "./user/userCreate";
+import { updateUser, updateUserMeta } from "./user/updateUser";
+import { deleteUser, deleteUserMeta } from "./user/deleteUser";
+import { getUser, getUserMeta } from "./user/getUser";
+import { listUsers, listUsersMeta } from "./user/listUsers";
+
+// Task tools
 import { createTask, createTaskMeta } from "./task/createTask";
 import { updateTask, updateTaskMeta } from "./task/updateTask";
 import { deleteTask, deleteTaskMeta } from "./task/deleteTask";
 import { getTask, getTaskMeta } from "./task/getTask";
 import { listTasks, listTasksMeta } from "./task/listTasks";
+
+// Codebase tools
 import { readFile, readFileMeta } from "./codebase/readFile";
 import { writeFile, writeFileMeta } from "./codebase/writeFile";
 import { deleteFile, deleteFileMeta } from "./codebase/deleteFile";
 import { analyseFile, analyseFileMeta } from "./codebase/analyseFile";
+import {
+  getFileStructure,
+  getFileStructureMeta,
+} from "./codebase/getFileStructure";
+import { searchCodebase, searchCodebaseMeta } from "./codebase/searchCodebase";
+
+// Project tools
 import {
   getProjectContext,
   getProjectContextMeta,
@@ -25,11 +42,6 @@ import {
   getCodingStandards,
   getCodingStandardsMeta,
 } from "./project/getCodingStandards";
-import {
-  getFileStructure,
-  getFileStructureMeta,
-} from "./codebase/getFileStructure";
-import { searchCodebase, searchCodebaseMeta } from "./codebase/searchCodebase";
 
 export class Tools {
   private server: Server;
@@ -45,8 +57,12 @@ export class Tools {
 
   private addTools() {
     this.tools = {
-      // User tools
+      // User CRUD tools
       create_user: [userCreateMeta, userCreate],
+      update_user: [updateUserMeta, updateUser],
+      delete_user: [deleteUserMeta, deleteUser],
+      get_user: [getUserMeta, getUser],
+      list_users: [listUsersMeta, listUsers],
       
       // Task CRUD tools
       create_task: [createTaskMeta, createTask],

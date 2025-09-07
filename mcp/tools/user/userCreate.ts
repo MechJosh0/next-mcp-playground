@@ -1,6 +1,7 @@
-import db from "./../../../src/lib/server/prisma";
-import { log } from "./../../utils/log";
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { log } from "./../../utils/log";
+import { UserService } from "./../../../src/services/UserService";
+import { UserCreateInput } from "./../../../src/lib/validation/user.schema";
 
 export const userCreateMeta: Tool = {
   name: "create_user",
@@ -29,23 +30,52 @@ export const userCreate = async function (args: {
   email: string;
   name?: string;
 }) {
-  log("info", "try to create the user!");
+  log("info", "Creating new user", { email: args.email });
 
-  const user = await db.user.create({
-    data: {
-      email: args.email.toLowerCase().trim(),
-      name: args.name?.trim() || null,
-    },
-  });
+  try {
+    // Prepare input data for service
+    const userInput: UserCreateInput = {
+      email: args.email,
+      name: args.name,
+    };
 
-  return {
-    content: [
-      {
-        type: "text",
-        text: `Created user: ${user.name || user.email}, Email: ${
-          user.email
-        }, ID: ${user.id}`,
-      },
-    ],
-  };
+    // Create service instance
+    const userService = new UserService();
+
+    // Use UserService to create user (includes validation and business logic)
+    const user = await userService.createUser(userInput);
+
+    log("info", "User created successfully", { userId: user.id, email: user.email });
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: `User created successfully with ID: ${user.id}`,
+              user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  } catch (error: any) {
+    log("error", "Failed to create user", {
+      error: error.message,
+      email: args.email,
+    });
+
+    // Let the error propagate naturally - the MCP tools.ts will handle it
+    throw error;
+  }
 };
