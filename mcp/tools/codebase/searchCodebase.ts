@@ -1,6 +1,37 @@
 import { promises as fs } from "fs";
-import { join, relative, extname } from "path";
+import path, { join, relative, extname } from "path";
 import { log } from "../../utils/log";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { validateProjectPath } from "../../utils/validateProjectPath";
+
+export const searchCodebaseMeta: Tool = {
+  name: "search_codebase",
+  description:
+    "Search for code patterns, functions, or text across the entire project. Use this to find existing implementations before creating new ones.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Search term or pattern to find",
+      },
+      file_types: {
+        type: "array",
+        items: { type: "string" },
+        description: "File extensions to search (e.g., ['.ts', '.js'])",
+        default: [".ts", ".js", ".tsx", ".jsx", ".py", ".md"],
+      },
+      exclude_dirs: {
+        type: "array",
+        items: { type: "string" },
+        description: "Directories to exclude from search",
+        default: ["node_modules", ".git", "dist", "build"],
+      },
+    },
+    required: ["query"],
+    additionalProperties: false,
+  },
+};
 
 const generateSearchVariants = (query: string): string[] => {
   const variants = new Set<string>();
@@ -77,8 +108,9 @@ export const searchCodebase = async function (args: {
     "dist",
     "build",
   ];
+
   const results: any[] = [];
-  const startPath = join(__dirname, "../../");
+  const startPath = validateProjectPath(".");
 
   // Generate search variants for different naming conventions
   const searchVariants = generateSearchVariants(args.query);

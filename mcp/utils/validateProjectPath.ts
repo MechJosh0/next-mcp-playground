@@ -1,4 +1,4 @@
-import path from "path";
+import { join } from "path";
 
 export const validateProjectPath = (filePath: string): string =>
-  path.join(process.cwd(), filePath);
+  join(__dirname, "../../", filePath);

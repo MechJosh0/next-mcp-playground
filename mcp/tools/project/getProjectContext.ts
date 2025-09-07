@@ -1,5 +1,17 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
+
+export const getProjectContextMeta: Tool = {
+  name: "get_project_context",
+  description:
+    "Get current project configuration, tech stack, coding standards, and goals. Call this when you need to understand the project context or when user asks about project details.",
+  inputSchema: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
+};
 
 export const getProjectContext = async function () {
   try {

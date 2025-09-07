@@ -1,6 +1,30 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { validateProjectPath } from "../../utils/validateProjectPath";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
+
+export const getFileStructureMeta: Tool = {
+  name: "get_file_structure",
+  description:
+    "Get an organized view of the project structure. Claude calls this to understand where files should be placed when creating new components.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      directory: {
+        type: "string",
+        description:
+          "Directory to analyze (optional, defaults to project root)",
+        default: ".",
+      },
+      max_depth: {
+        type: "number",
+        description: "Maximum depth to traverse (default: 3)",
+        default: 3,
+      },
+    },
+    additionalProperties: false,
+  },
+};
 
 export const getFileStructure = async function (args: {
   directory?: string;

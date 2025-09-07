@@ -1,11 +1,40 @@
 import { promises as fs } from "fs";
 import path, { join } from "path";
+import { validateProjectPath } from "../../utils/validateProjectPath";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
+
+export const writeFileMeta: Tool = {
+  name: "write_file",
+  description:
+    "Create or update a file in the project. Claude typically calls get_project_context first to understand coding standards.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      file_path: {
+        type: "string",
+        description:
+          "Path where to write the file relative to project root",
+      },
+      content: {
+        type: "string",
+        description: "File content to write",
+      },
+      backup: {
+        type: "boolean",
+        description: "Create backup of existing file (default: true)",
+        default: true,
+      },
+    },
+    required: ["file_path", "content"],
+    additionalProperties: false,
+  },
+};
 
 export const writeFile = async function (args: {
   file_path: string;
   content: string;
 }) {
-  const safePath = join(__dirname, "../../", args.file_path);
+  const safePath = validateProjectPath(args.file_path);
 
   try {
     await fs.mkdir(path.dirname(safePath), { recursive: true });
