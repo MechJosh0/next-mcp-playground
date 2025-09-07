@@ -2,13 +2,232 @@
 
 Comprehensive coding standards for the Next.js MCP Playground project.
 
+## Core Development Principles
+
+### Code Philosophy
+
+- **Keep it simple**: Solve the exact problem without over-engineering
+- **Small and focused**: Write small functions and modules that do one thing well
+- **Let errors throw naturally**: Don't catch errors in services/repositories - let Sentry pick them up and frontend handle API errors
+- **TypeScript throughout**: Use TypeScript for type safety but rely on inference as much as possible. Use types from `@prisma/client` that align with database tables
+- **Follow CRUD/SOLID**: Implement clean architecture with clear separation of concerns
+
+### Error Handling Strategy
+
+```typescript
+// ✅ Good: Let errors throw naturally in services/repositories
+export class TaskService {
+  async createTask(data: CreateTaskData): Promise<Task> {
+    if (!data.title?.trim()) {
+      throw new Error("Task title is required"); // Let this throw naturally
+    }
+
+    return await this.taskRepository.create(data); // Let database errors throw
+  }
+}
+
+// ✅ Good: Handle errors at the API/frontend boundary
+export async function POST(request: Request) {
+  try {
+    const task = await taskService.createTask(data);
+    return NextResponse.json(task);
+  } catch (error) {
+    // Handle errors here for proper API responses
+    console.error("API Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// ❌ Avoid: Catching errors in services/repositories
+export class TaskService {
+  async createTask(data: CreateTaskData): Promise<Task | null> {
+    try {
+      return await this.taskRepository.create(data);
+    } catch (error) {
+      console.error(error); // Don't do this - let it throw
+      return null;
+    }
+  }
+}
+```
+
+### TypeScript Usage
+
+- **Rely on TypeScript inference** whenever possible
+- **Use Prisma-generated types** from `@prisma/client` for database entities
+- **Use explicit types only when inference fails** or for complex public interfaces
+- **Import types from `@prisma/client`** to align with database schema
+
+```typescript
+import { Task, User, Priority } from '@prisma/client';
+
+// ✅ Good: Let TypeScript infer simple types, use Prisma types
+const createTask = async (title: string, userId: number) => {
+  return await taskRepository.create({ title, userId }); // Returns Task from Prisma
+};
+
+// ✅ Good: Use Prisma types for database entities
+const getUserTasks = async (userId: number): Promise<Task[]> => {
+  return await taskRepository.findByUserId(userId);
+};
+
+// ✅ Good: Explicit types only when needed for complex data
+type CreateTaskData = {
+  title: string;
+  description?: string;
+  priority?: Priority; // From Prisma enum
+  userId: number;
+};
+
+// ❌ Avoid: Over-defining simple interfaces when inference works
+interface CreateTaskParams {
+  title: string;
+  userId: number;
+}
+const createTask = async (params: CreateTaskParams) => { ... }
+```
+
+## Architecture Patterns
+
+### Repository Pattern
+
+```typescript
+import { Task, PrismaClient } from "@prisma/client";
+
+// ✅ Simple, focused repository using Prisma types
+export class TaskRepository {
+  constructor(private prisma: PrismaClient) {}
+
+  async create(data: CreateTaskData): Promise<Task> {
+    return await this.prisma.task.create({ data });
+  }
+
+  async findById(id: number): Promise<Task | null> {
+    return await this.prisma.task.findUnique({ where: { id } });
+  }
+}
+```
+
+### Service Pattern
+
+```typescript
+// ✅ Business logic in services, let errors throw
+export class TaskService {
+  constructor(private taskRepository: TaskRepository) {}
+
+  async createTask(data: CreateTaskData): Promise<Task> {
+    if (!data.title?.trim()) {
+      throw new Error("Task title is required");
+    }
+
+    return await this.taskRepository.create(data);
+  }
+}
+```
+
+### MCP Tool Pattern
+
+```typescript
+// ✅ Use services in MCP tools for consistency
+export const createTask = async function (args: CreateTaskArgs) {
+  const taskRepository = new TaskRepository(db);
+  const taskService = new TaskService(taskRepository);
+
+  const task = await taskService.createTask(args);
+
+  return {
+    content: [{ type: "text", text: JSON.stringify({ task }) }],
+  };
+};
+```
+
+## File Organization
+
+### SOLID & CRUD Architecture Structure
+
+Following Next.js recommendations with SOLID principles and CRUD operations:
+
+```
+src/
+├── types/
+├── interfaces/
+│   ├── repositories/
+│   └── services/
+├── repositories/
+├── services/
+├── hooks/
+│   ├── users/
+│   ├── tasks/
+│   └── assignments/
+├── components/
+│   ├── ui/
+│   ├── forms/
+│   ├── users/
+│   ├── tasks/
+│   └── assignments/
+├── pages/
+│   ├── api/
+│   │   ├── users/
+│   │   ├── tasks/
+│   │   └── assignments/
+│   ├── users/
+│   ├── tasks/
+│   └── assignments/
+├── lib/
+│   ├── database/
+│   ├── validations/
+│   └── utils/
+└── config/
+```
+
+### MCP Structure
+
+```
+mcp/
+├── tools/                # MCP tools implementation
+│   ├── codebase/         # File operation tools
+│   ├── project/          # Project management tools
+│   ├── user/             # User-related tools
+│   └── task/             # Task-related tools
+├── resources/            # MCP resources
+├── prompts/              # AI prompts and templates
+└── utils/                # MCP utilities
+```
+
+### Architecture Principles
+
+#### Repository Pattern
+
+- **Simple data access**: Direct Prisma operations without unnecessary abstraction
+- **Let errors throw**: Don't catch database errors, let them propagate
+- **Focused responsibility**: Each repository handles one entity
+- **Use Prisma types**: Import and use types from `@prisma/client`
+
+#### Service Layer
+
+- **Business logic only**: Validation, business rules, and orchestration
+- **Natural error handling**: Throw meaningful errors, don't catch
+- **Dependency injection**: Services depend on repositories
+
+#### Component Organization
+
+- **Domain-based**: Components grouped by business domain (users, tasks)
+- **UI Components**: Reusable, generic UI elements
+- **Feature Components**: Domain-specific, composable components
+
+#### Hook Organization
+
+- **CRUD Hooks**: Separate hooks for each operation (create, read, update, delete)
+- **Domain Hooks**: Business logic hooks organized by domain
+- **Reusable Logic**: Custom hooks for common patterns
+
 ## Naming Conventions
 
 ### Files and Directories
 
 - **Components**: PascalCase (e.g., `UserList.tsx`, `TaskCard.tsx`)
 - **Utilities**: camelCase (e.g., `userHelpers.ts`, `dateUtils.ts`)
-- **Pages**: kebab-case (e.g., `user-profile.tsx`, `task-list.tsx`)
+- **Pages**: Follow Next.js conventions (e.g., `[id].tsx`, `index.tsx`)
 - **Directories**: kebab-case (e.g., `user-management/`, `task-components/`)
 
 ### Variables and Functions
@@ -30,23 +249,25 @@ Comprehensive coding standards for the Next.js MCP Playground project.
 ### Import Order
 
 1. **Node modules** (React, Next.js, external packages)
-2. **Internal utilities** (from `@/lib`, `@/utils`)
-3. **Components** (from `@/components`)
-4. **Types** (from `@/types`)
-5. **Relative imports** (from `./` or `../`)
+2. **Prisma types** (from `@prisma/client`)
+3. **Internal utilities** (from `@/lib`, `@/utils`)
+4. **Components** (from `@/components`)
+5. **Types** (from `@/types`)
+6. **Relative imports** (from `./` or `../`)
 
 ### Import Style
 
 ```typescript
 // ✅ Preferred: Named imports
 import { useState, useEffect } from "react";
+import { Task, User, Priority } from "@prisma/client";
 import { getUserData, createTask } from "@/lib/api";
 
 // ✅ Default imports for components
 import UserCard from "@/components/UserCard";
 
-// ✅ Type imports
-import type { User, Task } from "@/types";
+// ✅ Type imports when needed
+import type { ApiResponse } from "@/types";
 
 // ❌ Avoid: Wildcard imports (except for specific cases)
 import * as React from "react"; // Only when necessary
@@ -63,59 +284,8 @@ export const validateUser = (user: User) => { ... };
 const UserCard: React.FC<UserCardProps> = ({ user }) => { ... };
 export default UserCard;
 
-// ✅ Type exports
-export type { User, Task, ApiResponse };
-```
-
-## TypeScript Standards
-
-### Type Definitions
-
-- **Always** define types for function parameters and return values
-- **Use** interfaces for object shapes, types for unions/primitives
-- **Prefer** explicit typing over `any`
-- **Enable** strict mode in TypeScript configuration
-
-```typescript
-// ✅ Good: Explicit typing
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  tasks?: Task[];
-}
-
-const getUser = async (id: string): Promise<UserData | null> => {
-  // Implementation
-};
-
-// ❌ Avoid: Any types
-const getUser = async (id: any): Promise<any> => {
-  // Implementation
-};
-```
-
-### React Component Types
-
-```typescript
-// ✅ Functional components with proper typing
-interface UserCardProps {
-  user: User;
-  onEdit?: (user: User) => void;
-  className?: string;
-}
-
-const UserCard: React.FC<UserCardProps> = ({
-  user,
-  onEdit,
-  className = "",
-}) => {
-  return (
-    <div className={`user-card ${className}`}>{/* Component content */}</div>
-  );
-};
-
-export default UserCard;
+// ✅ Type exports when creating custom types
+export type { ApiResponse };
 ```
 
 ## React Conventions
@@ -125,11 +295,13 @@ export default UserCard;
 - **Use** functional components with hooks
 - **Keep** components small and focused (< 200 lines)
 - **Extract** complex logic into custom hooks
-- **Use** TypeScript for all prop definitions
+- **Use** TypeScript but rely on inference for props when possible
 
 ### Hook Usage
 
 ```typescript
+import { User } from "@prisma/client";
+
 // ✅ Custom hooks for reusable logic
 const useUserData = (userId: string) => {
   const [user, setUser] = useState<User | null>(null);
@@ -159,80 +331,6 @@ const UserProfile = ({ userId }: { userId: string }) => {
 - **Consider** context for global state (avoid prop drilling)
 - **Keep** state as close to where it's used as possible
 
-## File Organization
-
-### SOLID & CRUD Architecture Structure
-
-Following Next.js recommendations with SOLID principles and CRUD operations:
-
-```
-src/
-├── types/
-├── interfaces/
-│   ├── repositories/
-│   └── services/
-├── repositories/
-├── services/
-├── hooks/
-│   ├── users/
-│   ├── tasks/
-│   └── assignments/
-├── components/
-│   ├── ui/
-│   ├── forms/
-│   ├── users/
-│   ├── tasks/
-│   └── assignments/
-├── pages/
-│   ├── api/
-│   ├── users/
-│   ├── tasks/
-├── lib/
-│   ├── database/
-│   ├── validations/
-│   └── utils/
-└── config/
-```
-
-### MCP Structure
-
-```
-mcp/
-├── tools/                # MCP tools implementation
-│   ├── codebase/         # File operation tools
-│   ├── project/          # Project management tools
-│   └── user/             # User-related tools
-├── resources/            # MCP resources
-├── prompts/              # AI prompts and templates
-└── utils/                # MCP utilities
-```
-
-### Architecture Principles
-
-#### Repository Pattern
-
-- **BaseRepository**: Common CRUD operations
-- **Specific Repositories**: Domain-specific data access logic
-- **Interface Segregation**: Separate interfaces for each repository
-
-#### Service Layer
-
-- **BaseService**: Common business logic patterns
-- **Domain Services**: Business rules and complex operations
-- **Dependency Injection**: Services depend on repository interfaces
-
-#### Component Organization
-
-- **Domain-based**: Components grouped by business domain (users, tasks)
-- **UI Components**: Reusable, generic UI elements
-- **Feature Components**: Domain-specific, composable components
-
-#### Hook Organization
-
-- **CRUD Hooks**: Separate hooks for each operation (create, read, update, delete)
-- **Domain Hooks**: Business logic hooks organized by domain
-- **Reusable Logic**: Custom hooks for common patterns
-
 ## Code Quality Standards
 
 ### General Principles
@@ -244,11 +342,16 @@ mcp/
 - **Use** consistent formatting (Prettier)
 - **Follow** ESLint rules strictly
 
-### Error Handling
+### Error Handling Boundaries
+
+- **Services/Repositories**: Always let errors throw naturally
+- **API Routes**: Always catch and handle errors for proper HTTP responses
+- **Frontend Components**: Handle API errors appropriately with user-friendly messages
 
 ```typescript
-// ✅ Proper error handling
+// ✅ Proper error handling at boundaries
 const getUserData = async (id: string): Promise<User | null> => {
+  // This is an API call, so handle errors
   try {
     const response = await fetch(`/api/users/${id}`);
 
@@ -295,25 +398,17 @@ const UserProfile = ({ userId }: { userId: string }) => {
 - **Use** semantic color names in Tailwind config
 
 ```typescript
+import { User } from "@prisma/client";
+
 // ✅ Good Tailwind usage
 const UserCard = ({ user }: { user: User }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-        {user.name}
-      </h3>
-      <p className="text-gray-600 text-sm">
-        {user.email}
-      </p>
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">{user.name}</h3>
+      <p className="text-gray-600 text-sm">{user.email}</p>
     </div>
   );
 };
-
-// ✅ Component classes for reused patterns
-// In globals.css or component-specific CSS
-.user-card-base {
-  @apply bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow;
-}
 ```
 
 ## Database and API Standards
@@ -324,12 +419,15 @@ const UserCard = ({ user }: { user: User }) => {
 - **Follow** database naming conventions (snake_case for columns)
 - **Implement** proper relationships
 - **Use** transactions for complex operations
+- **Import types from `@prisma/client`**
 
 ```typescript
-// ✅ Good Prisma usage
+import { User, Task } from "@prisma/client";
+
+// ✅ Good Prisma usage with proper types
 const createUserWithTasks = async (userData: CreateUserData) => {
   return await prisma.$transaction(async (tx) => {
-    const user = await tx.user.create({
+    const user: User = await tx.user.create({
       data: {
         email: userData.email,
         name: userData.name,
@@ -356,9 +454,11 @@ const createUserWithTasks = async (userData: CreateUserData) => {
 - **Implement** proper error responses
 - **Validate** input data
 - **Use** consistent response formats
+- **Follow** Next.js conventions for file naming
 
 ```typescript
-// ✅ Good API route structure
+// ✅ Good API route structure following Next.js conventions
+// File: pages/api/users/[id].ts
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -445,9 +545,12 @@ refactor(components): extract common button styles
 ### Code Review Guidelines
 
 - **Review** for adherence to these standards
-- **Check** for proper error handling
+- **Check** for proper error handling boundaries
+- **Verify** Zod schema validation in CRUD operations and API routes
+- **Confirm** type inference from Zod schemas rather than manual interfaces
 - **Verify** type safety and performance considerations
 - **Ensure** proper testing coverage for new features
+- **Confirm** usage of Prisma types over custom interfaces
 
 ---
 
