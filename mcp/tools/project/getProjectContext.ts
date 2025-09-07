@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { validateProjectPath } from "../../utils/validateProjectPath";
 
 export const getProjectContextMeta: Tool = {
   name: "get_project_context",
@@ -15,27 +16,17 @@ export const getProjectContextMeta: Tool = {
 
 export const getProjectContext = async function () {
   try {
-    // Load project configuration
-    const configPath = path.join(process.cwd(), "project_config.json");
+    // Load project configuration from markdown using validateProjectPath
+    const configPath = validateProjectPath(
+      "mcp/tools/project/project_config.md"
+    );
     const configContent = await fs.readFile(configPath, "utf-8");
-    const config = JSON.parse(configContent);
 
-    // Generate contextual guidance
-    const guidance = `
-      CODING BUDDY CONTEXT FOR ${config.name}:
-      - Tech Stack: ${config.tech_stack.join(", ")}
-      - Architecture: ${config.architecture}
-      - Current Goals: ${config.current_goals.join(", ")}
-      - Coding Standards: ${config.coding_standards.naming}, max ${
-      config.coding_standards.max_line_length
-    } chars
-
-      AUTOMATIC BEHAVIOR:
-      - Follow ${config.coding_standards.style_guide}
-      - Place components in appropriate directories
-      - Reference current goals when suggesting features
-      - Use project's established patterns
-          `.trim();
+    // Extract project name from the markdown title
+    const projectNameMatch = configContent.match(/^# (.+)$/m);
+    const projectName = projectNameMatch
+      ? projectNameMatch[1]
+      : "Unknown Project";
 
     return {
       content: [
@@ -43,12 +34,9 @@ export const getProjectContext = async function () {
           type: "text",
           text: JSON.stringify(
             {
-              project_name: config.name,
-              tech_stack: config.tech_stack,
-              current_goals: config.current_goals,
-              coding_standards: config.coding_standards,
-              architecture: config.architecture,
-              guidance,
+              project_name: projectName,
+              configuration: configContent,
+              guidance: `Project configuration loaded from mcp/tools/project/project_config.md. This markdown file serves as the single source of truth for project context, coding standards, architecture, and development guidelines.`,
             },
             null,
             2
@@ -57,23 +45,15 @@ export const getProjectContext = async function () {
       ],
     };
   } catch (error) {
+    // Return default context if config doesn't exist
     return {
       content: [
         {
           type: "text",
           text: JSON.stringify(
             {
-              project_name: "Unknown Project",
-              tech_stack: ["TypeScript"],
-              current_goals: [],
-              coding_standards: {
-                naming: "camelCase",
-                max_line_length: 100,
-                style_guide: "ESLint + Prettier",
-              },
-              architecture: "Not specified",
-              guidance:
-                "No project configuration found. Using TypeScript defaults.",
+              error:
+                "No project_config.md found, quit the tool actions so we don't write the wrong type of code.",
             },
             null,
             2

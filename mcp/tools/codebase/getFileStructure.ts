@@ -77,15 +77,17 @@ export const getFileStructure = async function (args: {
     const summary = `
       PROJECT STRUCTURE SUMMARY:
       - Directory: ${directory}
-      - Shows where components, files, and folders are organized
+      - Shows where components, files, and folders are organised
       - Use this to understand where to place new files
       - Hidden files and build directories omitted for clarity
 
       COMMON PATTERNS:
-      - Components typically go in ./src/components/
-      - Services/APIs in ./src/services/ or ./src/api/
+      - Follows the folder structure of App Router Structure from Next.js 13+
       - Types/interfaces in ./src/types/
-      - Tests alongside source files or in ./tests/
+      - ./src/ - Next.js App Router application
+      - ./prisma/ - Database schema and migrations
+      - ./mcp/ - Model Context Protocol server and tools
+      - MCP tools in ./mcp/tools/, resources in ./mcp/resources/, and prompts in ./mcp/prompts/
           `.trim();
 
     return {
@@ -113,7 +115,7 @@ export const getFileStructure = async function (args: {
           type: "text",
           text: JSON.stringify(
             {
-              error: `Failed to analyze directory structure: ${error.message}`,
+              error: `Failed to analyse directory structure: ${error.message}`,
               directory,
             },
             null,

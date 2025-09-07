@@ -23,7 +23,7 @@ export class Resources {
     this.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
       resources: [
         {
-          uri: "file://project_config.md",
+          uri: "file://tools/project/project_config.md",
           name: "Project config",
           description: "Core project configuration",
           mimeType: "text/markdown",
