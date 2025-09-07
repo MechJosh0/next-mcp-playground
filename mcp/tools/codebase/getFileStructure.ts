@@ -13,7 +13,7 @@ export const getFileStructureMeta: Tool = {
       directory: {
         type: "string",
         description:
-          "Directory to analyze (optional, defaults to project root)",
+          "Directory to analyse (optional, defaults to project root)",
         default: ".",
       },
       max_depth: {

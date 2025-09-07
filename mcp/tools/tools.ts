@@ -11,8 +11,19 @@ import { userCreate, userCreateMeta } from "./user/userCreate";
 import { readFile, readFileMeta } from "./codebase/readFile";
 import { writeFile, writeFileMeta } from "./codebase/writeFile";
 import { deleteFile, deleteFileMeta } from "./codebase/deleteFile";
-import { getProjectContext, getProjectContextMeta } from "./project/getProjectContext";
-import { getFileStructure, getFileStructureMeta } from "./codebase/getFileStructure";
+import { analyseFile, analyseFileMeta } from "./codebase/analyseFile";
+import {
+  getProjectContext,
+  getProjectContextMeta,
+} from "./project/getProjectContext";
+import {
+  getCodingStandards,
+  getCodingStandardsMeta,
+} from "./project/getCodingStandards";
+import {
+  getFileStructure,
+  getFileStructureMeta,
+} from "./codebase/getFileStructure";
 import { searchCodebase, searchCodebaseMeta } from "./codebase/searchCodebase";
 
 export class Tools {
@@ -21,7 +32,7 @@ export class Tools {
 
   constructor(server: Server) {
     this.server = server;
-    
+
     this.addTools();
     this.listSchema();
     this.callSchema();
@@ -33,7 +44,9 @@ export class Tools {
       read_file: [readFileMeta, readFile],
       write_file: [writeFileMeta, writeFile],
       delete_file: [deleteFileMeta, deleteFile],
+      analyse_file: [analyseFileMeta, analyseFile],
       get_project_context: [getProjectContextMeta, getProjectContext],
+      get_coding_standards: [getCodingStandardsMeta, getCodingStandards],
       get_file_structure: [getFileStructureMeta, getFileStructure],
       search_codebase: [searchCodebaseMeta, searchCodebase],
     };
@@ -42,7 +55,7 @@ export class Tools {
   private listSchema(): void {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       const tools = Object.values(this.tools).map(([toolMeta]) => toolMeta);
-      
+
       return { tools };
     });
   }
@@ -61,7 +74,10 @@ export class Tools {
           // Find the tool in our tools registry
           const toolEntry = this.tools[name];
           if (!toolEntry) {
-            throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+            throw new McpError(
+              ErrorCode.MethodNotFound,
+              `Unknown tool: ${name}`
+            );
           }
 
           const [, toolFunction] = toolEntry;

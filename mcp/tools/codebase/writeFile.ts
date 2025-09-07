@@ -6,14 +6,13 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
 export const writeFileMeta: Tool = {
   name: "write_file",
   description:
-    "Create or update a file in the project. Claude typically calls get_project_context first to understand coding standards.",
+    "Create or update a file in the project. Claude must call get_project_context and get_coding_standards first to understand project context and coding standards.",
   inputSchema: {
     type: "object",
     properties: {
       file_path: {
         type: "string",
-        description:
-          "Path where to write the file relative to project root",
+        description: "Path where to write the file relative to project root",
       },
       content: {
         type: "string",
